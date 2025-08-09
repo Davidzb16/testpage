@@ -81,11 +81,8 @@ def create_app() -> Flask:
 
     @app.get("/hello")
     def hello():
-        if not session.get("user_id"):
-            flash("Please log in to continue.", "error")
-            return redirect(url_for("login"))
-        user_name = session.get("user_name") or session.get("user_email")
-        return render_template("hello.html", user_name=user_name)
+        # Legacy route: redirect to dashboard
+        return redirect(url_for("dashboard"))
 
     @app.get("/dashboard")
     def dashboard():
