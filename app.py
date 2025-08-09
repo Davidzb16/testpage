@@ -157,7 +157,8 @@ def get_db_connection(app: Flask, include_database: bool = True):
     """Return a DB connection for the configured backend."""
     backend = app.config.get("DB_BACKEND", "mysql")
     if backend == "sqlite":
-        db_path = os.path.join(app.instance_path, "app.db")
+        # Allow overriding SQLite storage path (useful on hosts like Koyeb)
+        db_path = os.getenv("SQLITE_PATH") or os.path.join(app.instance_path, "app.db")
         conn = sqlite3.connect(db_path, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         return conn
