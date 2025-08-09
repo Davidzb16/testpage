@@ -32,7 +32,7 @@ def create_app() -> Flask:
     @app.get("/")
     def index():
         if session.get("user_id"):
-            return redirect(url_for("hello"))
+            return redirect(url_for("dashboard"))
         return redirect(url_for("login"))
 
     @app.route("/login", methods=["GET", "POST"])
@@ -51,7 +51,8 @@ def create_app() -> Flask:
             session["user_email"] = user["email"]
             session["user_name"] = user.get("full_name")
             flash("Logged in successfully.", "success")
-            return redirect(url_for("hello"))
+            ensure_demo_deliveries_for_user(app, user["id"])  # seed when empty (dev/demo)
+            return redirect(url_for("dashboard"))
         return render_template("login.html")
 
     @app.route("/register", methods=["GET", "POST"])
@@ -85,6 +86,23 @@ def create_app() -> Flask:
             return redirect(url_for("login"))
         user_name = session.get("user_name") or session.get("user_email")
         return render_template("hello.html", user_name=user_name)
+
+    @app.get("/dashboard")
+    def dashboard():
+        if not session.get("user_id"):
+            flash("Please log in to continue.", "error")
+            return redirect(url_for("login"))
+        user_id = session["user_id"]
+        counts = fetch_delivery_counts(app, user_id)
+        deliveries_for_map = fetch_deliveries_for_map(app, user_id)
+        maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY", "")
+        return render_template(
+            "dashboard.html",
+            pending_count=counts.get("pending", 0),
+            delivered_count=counts.get("delivered", 0),
+            deliveries=deliveries_for_map,
+            maps_api_key=maps_api_key,
+        )
 
     @app.get("/logout")
     def logout():
@@ -193,6 +211,21 @@ def initialize_database(app: Flask) -> None:
                 )
                 cur.execute(
                     """
+                    CREATE TABLE IF NOT EXISTS deliveries (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      user_id INTEGER NOT NULL,
+                      address TEXT NULL,
+                      latitude REAL NULL,
+                      longitude REAL NULL,
+                      status TEXT NOT NULL CHECK (status IN ('pending','delivered')),
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                      delivered_at TIMESTAMP NULL,
+                      FOREIGN KEY(user_id) REFERENCES users(id)
+                    )
+                    """
+                )
+                cur.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS password_resets (
                       id INTEGER PRIMARY KEY AUTOINCREMENT,
                       user_id INTEGER NOT NULL,
@@ -230,6 +263,21 @@ def initialize_database(app: Flask) -> None:
                       full_name VARCHAR(255) NULL,
                       password_hash VARCHAR(255) NOT NULL,
                       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS deliveries (
+                      id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                      user_id INT NOT NULL,
+                      address VARCHAR(512) NULL,
+                      latitude DOUBLE NULL,
+                      longitude DOUBLE NULL,
+                      status ENUM('pending','delivered') NOT NULL,
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                      delivered_at TIMESTAMP NULL,
+                      CONSTRAINT fk_deliveries_user FOREIGN KEY (user_id) REFERENCES users(id)
                     )
                     """
                 )
@@ -299,6 +347,96 @@ def create_user(app: Flask, full_name: str, email: str, password: str) -> Tuple[
         return True, None
     except (MySQLError, sqlite3.Error) as exc:
         return False, str(exc)
+
+def fetch_delivery_counts(app: Flask, user_id: int) -> dict:
+    backend = app.config.get("DB_BACKEND", "mysql")
+    try:
+        if backend == "sqlite":
+            with get_db_connection(app) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT COUNT(*) FROM deliveries WHERE user_id = ? AND status = 'pending'", (user_id,))
+                pending = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM deliveries WHERE user_id = ? AND status = 'delivered'", (user_id,))
+                delivered = cur.fetchone()[0]
+                return {"pending": pending, "delivered": delivered}
+        with get_db_connection(app) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM deliveries WHERE user_id = %s AND status = 'pending'", (user_id,))
+                pending = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM deliveries WHERE user_id = %s AND status = 'delivered'", (user_id,))
+                delivered = cur.fetchone()[0]
+                return {"pending": pending, "delivered": delivered}
+    except (MySQLError, sqlite3.Error) as exc:
+        print(f"[DB] Error fetching delivery counts: {exc}")
+        return {"pending": 0, "delivered": 0}
+
+def fetch_deliveries_for_map(app: Flask, user_id: int) -> list[dict]:
+    backend = app.config.get("DB_BACKEND", "mysql")
+    try:
+        if backend == "sqlite":
+            with get_db_connection(app) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT id, address, latitude, longitude, status FROM deliveries WHERE user_id = ? AND latitude IS NOT NULL AND longitude IS NOT NULL",
+                    (user_id,),
+                )
+                rows = cur.fetchall()
+                return [
+                    {"id": r[0], "address": r[1], "latitude": r[2], "longitude": r[3], "status": r[4]}
+                    for r in rows
+                ]
+        with get_db_connection(app) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id, address, latitude, longitude, status FROM deliveries WHERE user_id = %s AND latitude IS NOT NULL AND longitude IS NOT NULL",
+                    (user_id,),
+                )
+                rows = cur.fetchall()
+                return [
+                    {"id": r[0], "address": r[1], "latitude": r[2], "longitude": r[3], "status": r[4]}
+                    for r in rows
+                ]
+    except (MySQLError, sqlite3.Error) as exc:
+        print(f"[DB] Error fetching deliveries for map: {exc}")
+        return []
+
+def ensure_demo_deliveries_for_user(app: Flask, user_id: int) -> None:
+    """Seed a few demo deliveries for new users if none exist (dev/demo convenience)."""
+    backend = app.config.get("DB_BACKEND", "mysql")
+    try:
+        if backend == "sqlite":
+            with get_db_connection(app) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT COUNT(*) FROM deliveries WHERE user_id = ?", (user_id,))
+                if cur.fetchone()[0] > 0:
+                    return
+                data = [
+                    (user_id, "123 Market St", 37.7749, -122.4194, "pending"),
+                    (user_id, "500 Howard St", 37.7890, -122.3912, "pending"),
+                    (user_id, "1 Ferry Building", 37.7955, -122.3937, "delivered"),
+                ]
+                cur.executemany(
+                    "INSERT INTO deliveries (user_id, address, latitude, longitude, status) VALUES (?, ?, ?, ?, ?)",
+                    data,
+                )
+                conn.commit()
+            return
+        with get_db_connection(app) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM deliveries WHERE user_id = %s", (user_id,))
+                if cur.fetchone()[0] > 0:
+                    return
+                data = [
+                    (user_id, "123 Market St", 37.7749, -122.4194, "pending"),
+                    (user_id, "500 Howard St", 37.7890, -122.3912, "pending"),
+                    (user_id, "1 Ferry Building", 37.7955, -122.3937, "delivered"),
+                ]
+                cur.executemany(
+                    "INSERT INTO deliveries (user_id, address, latitude, longitude, status) VALUES (%s, %s, %s, %s, %s)",
+                    data,
+                )
+    except (MySQLError, sqlite3.Error) as exc:
+        print(f"[DB] Error seeding demo deliveries: {exc}")
 
 def update_user_password(app: Flask, user_id: int, new_password: str) -> Tuple[bool, Optional[str]]:
     backend = app.config.get("DB_BACKEND", "mysql")

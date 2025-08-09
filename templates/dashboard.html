@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Dashboard</h1>
+  <div class="cards">
+    <div class="card"><div class="card-title">Pending</div><div class="card-value">{{ pending_count }}</div></div>
+    <div class="card"><div class="card-title">Delivered</div><div class="card-value">{{ delivered_count }}</div></div>
+  </div>
+
+  <h2>Delivery Map</h2>
+  <div id="map" style="height: 400px; width: 100%; border-radius: 8px;"></div>
+
+  <script>
+    const deliveries = {{ deliveries | tojson }};
+    function initMap() {
+      const center = deliveries.length
+        ? { lat: deliveries[0].latitude, lng: deliveries[0].longitude }
+        : { lat: 37.7749, lng: -122.4194 };
+      const map = new google.maps.Map(document.getElementById('map'), {
+        zoom: deliveries.length ? 12 : 10,
+        center,
+      });
+      deliveries.forEach(d => {
+        const marker = new google.maps.Marker({
+          position: { lat: d.latitude, lng: d.longitude },
+          map,
+          title: `${d.address || 'Delivery'} (${d.status})`
+        });
+      });
+    }
+  </script>
+  {% if maps_api_key %}
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&callback=initMap"></script>
+  {% else %}
+    <p style="color:#8a1c1c">Google Maps is not configured. Set <code>GOOGLE_MAPS_API_KEY</code> in environment to enable the map.</p>
+    <script>document.addEventListener('DOMContentLoaded', initMap);</script>
+  {% endif %}
+{% endblock %}
+
+
