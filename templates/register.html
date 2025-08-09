@@ -1,5 +1,6 @@
 ﻿{% extends "base.html" %}
 {% block content %}
+  <div class="auth-page">
   <h1>Create Account</h1>
   <form method="post" class="form">
     <label>Name (optional)
@@ -17,4 +18,5 @@
     <button type="submit">Create Account</button>
   </form>
   <p>Already have an account? <a href="{{ url_for("login") }}">Log in</a>.</p>
+  </div>
 {% endblock %}

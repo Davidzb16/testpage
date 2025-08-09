@@ -37,6 +37,8 @@ button { padding: 10px 14px; border-radius: 8px; border: 0; background: var(--pr
 .menu-item:hover { background: #0d1a3b; border-color: #233064; }
 .menu-item.active { background: #122457; border-color: #2a3a7a; color: #eaf1ff; }
 .content { padding: 0; }
+.auth-page { display: grid; place-items: center; }
+.auth-page .form { width: 100%; max-width: 420px; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 12px 0 20px; }
 .card { background: var(--panel); border: 1px solid #1c254e; border-radius: 12px; padding: 14px; }
 .card-title { color: var(--muted); font-size: 13px; }

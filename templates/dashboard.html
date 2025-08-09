@@ -31,8 +31,24 @@
   {% if maps_api_key %}
     <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&callback=initMap"></script>
   {% else %}
-    <p style="color:#8a1c1c">Google Maps is not configured. Set <code>GOOGLE_MAPS_API_KEY</code> in environment to enable the map.</p>
-    <script>document.addEventListener('DOMContentLoaded', initMap);</script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+      function initMap() {
+        const center = deliveries.length
+          ? { lat: deliveries[0].latitude, lng: deliveries[0].longitude }
+          : { lat: 37.7749, lng: -122.4194 };
+        const map = L.map('map').setView([center.lat, center.lng], deliveries.length ? 12 : 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        deliveries.forEach(d => {
+          L.marker([d.latitude, d.longitude]).addTo(map).bindPopup(`${d.address || 'Delivery'} (${d.status})`);
+        });
+      }
+      document.addEventListener('DOMContentLoaded', initMap);
+    </script>
   {% endif %}
 {% endblock %}
 
