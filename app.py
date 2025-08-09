@@ -1,0 +1,413 @@
+﻿import os
+import re
+import sqlite3
+import secrets
+from datetime import datetime, timedelta, timezone
+from typing import Optional, Tuple
+from flask import Flask, render_template, request, redirect, url_for, flash, session
+from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
+import mysql.connector
+from mysql.connector import Error as MySQLError
+
+def create_app() -> Flask:
+    load_dotenv()
+    app = Flask(__name__)
+    app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
+    app.config.update(
+        DB_BACKEND=os.getenv("DB_BACKEND", "mysql").lower(),
+        MYSQL_HOST=os.getenv("MYSQL_HOST", "127.0.0.1"),
+        MYSQL_PORT=int(os.getenv("MYSQL_PORT", "3306")),
+        MYSQL_USER=os.getenv("MYSQL_USER", "root"),
+        MYSQL_PASSWORD=os.getenv("MYSQL_PASSWORD", ""),
+        MYSQL_DATABASE=os.getenv("MYSQL_DATABASE", "test_login"),
+    )
+    # Ensure instance folder exists for SQLite file storage
+    try:
+        os.makedirs(app.instance_path, exist_ok=True)
+    except Exception:
+        pass
+    initialize_database(app)
+
+    @app.get("/")
+    def index():
+        if session.get("user_id"):
+            return redirect(url_for("hello"))
+        return redirect(url_for("login"))
+
+    @app.route("/login", methods=["GET", "POST"])
+    def login():
+        if request.method == "POST":
+            email = (request.form.get("email") or "").strip().lower()
+            password = request.form.get("password") or ""
+            if not email or not password:
+                flash("Please enter both email and password.", "error")
+                return render_template("login.html")
+            user = fetch_user_by_email(app, email)
+            if not user or not check_password_hash(user["password_hash"], password):
+                flash("Invalid email or password.", "error")
+                return render_template("login.html")
+            session["user_id"] = user["id"]
+            session["user_email"] = user["email"]
+            session["user_name"] = user.get("full_name")
+            flash("Logged in successfully.", "success")
+            return redirect(url_for("hello"))
+        return render_template("login.html")
+
+    @app.route("/register", methods=["GET", "POST"])
+    def register():
+        if request.method == "POST":
+            full_name = (request.form.get("full_name") or "").strip()
+            email = (request.form.get("email") or "").strip().lower()
+            password = request.form.get("password") or ""
+            confirm_password = request.form.get("confirm_password") or ""
+            error_messages = validate_registration_input(full_name, email, password, confirm_password)
+            if error_messages:
+                for message in error_messages:
+                    flash(message, "error")
+                return render_template("register.html", full_name=full_name, email=email)
+            existing = fetch_user_by_email(app, email)
+            if existing:
+                flash("An account with this email already exists.", "error")
+                return render_template("register.html", full_name=full_name, email=email)
+            success, msg = create_user(app, full_name, email, password)
+            if not success:
+                flash(msg or "Failed to create user.", "error")
+                return render_template("register.html", full_name=full_name, email=email)
+            flash("Account created. You can now log in.", "success")
+            return redirect(url_for("login"))
+        return render_template("register.html")
+
+    @app.get("/hello")
+    def hello():
+        if not session.get("user_id"):
+            flash("Please log in to continue.", "error")
+            return redirect(url_for("login"))
+        user_name = session.get("user_name") or session.get("user_email")
+        return render_template("hello.html", user_name=user_name)
+
+    @app.get("/logout")
+    def logout():
+        session.clear()
+        flash("You have been logged out.", "success")
+        return redirect(url_for("login"))
+
+    @app.route("/forgot", methods=["GET", "POST"])
+    def forgot_password():
+        if request.method == "POST":
+            email = (request.form.get("email") or "").strip().lower()
+            # Always show generic response to avoid user enumeration
+            user = fetch_user_by_email(app, email) if email else None
+            if user:
+                token, expires_at = create_password_reset_token(app, user["id"])
+                reset_url = url_for("reset_password", token=token, _external=True)
+                print(f"[RESET] Password reset link for {email}: {reset_url} (expires {expires_at.isoformat()})")
+            flash("If that email exists, you'll receive reset instructions.", "success")
+            return redirect(url_for("login"))
+        return render_template("forgot.html")
+
+    @app.route("/reset/<token>", methods=["GET", "POST"])
+    def reset_password(token: str):
+        record = fetch_password_reset_by_token(app, token)
+        if not record or record.get("used_at") or record["expires_at"] < datetime.now(timezone.utc):
+            flash("Invalid or expired reset link.", "error")
+            return redirect(url_for("forgot_password"))
+        if request.method == "POST":
+            password = request.form.get("password") or ""
+            confirm_password = request.form.get("confirm_password") or ""
+            errors = validate_registration_input("", "test@example.com", password, confirm_password)
+            # We ignore email/full_name errors above by passing dummies; filter to password-related only
+            errors = [e for e in errors if "Password" in e]
+            if errors:
+                for msg in errors:
+                    flash(msg, "error")
+                return render_template("reset_password.html", token=token)
+            ok, msg = update_user_password(app, record["user_id"], password)
+            if not ok:
+                flash(msg or "Could not update password.", "error")
+                return render_template("reset_password.html", token=token)
+            mark_password_reset_used(app, token)
+            flash("Your password has been reset. You can log in now.", "success")
+            return redirect(url_for("login"))
+        return render_template("reset_password.html", token=token)
+
+    return app
+
+def validate_registration_input(full_name: str, email: str, password: str, confirm_password: str) -> list[str]:
+    errors: list[str] = []
+    if not email:
+        errors.append("Email is required.")
+    elif not is_valid_email(email):
+        errors.append("Please enter a valid email address.")
+    if not password:
+        errors.append("Password is required.")
+    elif len(password) < 8:
+        errors.append("Password must be at least 8 characters long.")
+    if confirm_password != password:
+        errors.append("Passwords do not match.")
+    if full_name and len(full_name) > 255:
+        errors.append("Name is too long.")
+    return errors
+
+def is_valid_email(email: str) -> bool:
+    pattern = r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
+    return re.match(pattern, email) is not None
+
+def get_db_connection(app: Flask, include_database: bool = True):
+    """Return a DB connection for the configured backend."""
+    backend = app.config.get("DB_BACKEND", "mysql")
+    if backend == "sqlite":
+        db_path = os.path.join(app.instance_path, "app.db")
+        conn = sqlite3.connect(db_path, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        return conn
+    # default: mysql
+    connection_kwargs = {
+        "host": app.config["MYSQL_HOST"],
+        "port": app.config["MYSQL_PORT"],
+        "user": app.config["MYSQL_USER"],
+        "password": app.config["MYSQL_PASSWORD"],
+        "autocommit": True,
+    }
+    if include_database:
+        connection_kwargs["database"] = app.config["MYSQL_DATABASE"]
+    return mysql.connector.connect(**connection_kwargs)
+
+def initialize_database(app: Flask) -> None:
+    backend = app.config.get("DB_BACKEND", "mysql")
+    if backend == "sqlite":
+        try:
+            with get_db_connection(app) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS users (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      email TEXT NOT NULL UNIQUE,
+                      full_name TEXT NULL,
+                      password_hash TEXT NOT NULL,
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS password_resets (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      user_id INTEGER NOT NULL,
+                      token TEXT NOT NULL UNIQUE,
+                      expires_at TIMESTAMP NOT NULL,
+                      used_at TIMESTAMP NULL,
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                      FOREIGN KEY(user_id) REFERENCES users(id)
+                    )
+                    """
+                )
+                conn.commit()
+        except sqlite3.Error as exc:
+            print(f"[INIT] Error initializing SQLite DB: {exc}")
+        return
+
+        # mysql path
+    database_name = app.config["MYSQL_DATABASE"]
+    try:
+        with get_db_connection(app, include_database=False) as server_conn:
+            with server_conn.cursor() as cur:
+                cur.execute(
+                    f"CREATE DATABASE IF NOT EXISTS `{database_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+                )
+    except MySQLError as exc:
+        print(f"[INIT] Warning: Could not ensure database exists: {exc}")
+    try:
+        with get_db_connection(app, include_database=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS users (
+                      id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                      email VARCHAR(255) NOT NULL UNIQUE,
+                      full_name VARCHAR(255) NULL,
+                      password_hash VARCHAR(255) NOT NULL,
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS password_resets (
+                      id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                      user_id INT NOT NULL,
+                      token VARCHAR(255) NOT NULL UNIQUE,
+                      expires_at TIMESTAMP NOT NULL,
+                      used_at TIMESTAMP NULL,
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                      CONSTRAINT fk_resets_user FOREIGN KEY (user_id) REFERENCES users(id)
+                    )
+                    """
+                )
+    except MySQLError as exc:
+        print(f"[INIT] Error ensuring users table exists: {exc}")
+
+def fetch_user_by_email(app: Flask, email: str) -> Optional[dict]:
+    backend = app.config.get("DB_BACKEND", "mysql")
+    try:
+        if backend == "sqlite":
+            with get_db_connection(app) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT id, email, full_name, password_hash FROM users WHERE email = ?",
+                    (email,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                # sqlite3.Row supports mapping interface
+                return {k: row[k] for k in ["id", "email", "full_name", "password_hash"]}
+        # mysql
+        with get_db_connection(app) as conn:
+            with conn.cursor(dictionary=True) as cur:
+                cur.execute(
+                    "SELECT id, email, full_name, password_hash FROM users WHERE email = %s",
+                    (email,),
+                )
+                return cur.fetchone()
+    except (MySQLError, sqlite3.Error) as exc:
+        print(f"[DB] Error fetching user by email: {exc}")
+        return None
+
+def create_user(app: Flask, full_name: str, email: str, password: str) -> Tuple[bool, Optional[str]]:
+    backend = app.config.get("DB_BACKEND", "mysql")
+    try:
+        password_hash = generate_password_hash(password)
+        if backend == "sqlite":
+            with get_db_connection(app) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "INSERT INTO users (email, full_name, password_hash) VALUES (?, ?, ?)",
+                    (email, full_name or None, password_hash),
+                )
+                conn.commit()
+            return True, None
+        # mysql
+        with get_db_connection(app) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO users (email, full_name, password_hash) VALUES (%s, %s, %s)",
+                    (email, full_name or None, password_hash),
+                )
+        return True, None
+    except (MySQLError, sqlite3.Error) as exc:
+        return False, str(exc)
+
+def update_user_password(app: Flask, user_id: int, new_password: str) -> Tuple[bool, Optional[str]]:
+    backend = app.config.get("DB_BACKEND", "mysql")
+    try:
+        password_hash = generate_password_hash(new_password)
+        if backend == "sqlite":
+            with get_db_connection(app) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "UPDATE users SET password_hash = ? WHERE id = ?",
+                    (password_hash, user_id),
+                )
+                conn.commit()
+            return True, None
+        with get_db_connection(app) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET password_hash = %s WHERE id = %s",
+                    (password_hash, user_id),
+                )
+        return True, None
+    except (MySQLError, sqlite3.Error) as exc:
+        return False, str(exc)
+
+def create_password_reset_token(app: Flask, user_id: int) -> Tuple[str, datetime]:
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    backend = app.config.get("DB_BACKEND", "mysql")
+    if backend == "sqlite":
+        with get_db_connection(app) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)",
+                (user_id, token, expires_at.isoformat()),
+            )
+            conn.commit()
+        return token, expires_at
+    with get_db_connection(app) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO password_resets (user_id, token, expires_at) VALUES (%s, %s, %s)",
+                (user_id, token, expires_at.strftime("%Y-%m-%d %H:%M:%S")),
+            )
+    return token, expires_at
+
+def fetch_password_reset_by_token(app: Flask, token: str) -> Optional[dict]:
+    backend = app.config.get("DB_BACKEND", "mysql")
+    try:
+        if backend == "sqlite":
+            with get_db_connection(app) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT id, user_id, token, expires_at, used_at, created_at FROM password_resets WHERE token = ?",
+                    (token,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                result = {k: row[k] for k in ["id", "user_id", "token", "expires_at", "used_at", "created_at"]}
+                # Normalize timestamps to aware datetime
+                result["expires_at"] = _parse_sqlite_timestamp(result["expires_at"])  # type: ignore
+                result["used_at"] = _parse_sqlite_timestamp(result["used_at"]) if result["used_at"] else None  # type: ignore
+                return result
+        with get_db_connection(app) as conn:
+            with conn.cursor(dictionary=True) as cur:
+                cur.execute(
+                    "SELECT id, user_id, token, expires_at, used_at, created_at FROM password_resets WHERE token = %s",
+                    (token,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                # MySQL returns naive datetime; make it aware in UTC
+                row["expires_at"] = row["expires_at"].replace(tzinfo=timezone.utc)
+                row["used_at"] = row["used_at"].replace(tzinfo=timezone.utc) if row["used_at"] else None
+                return row
+    except (MySQLError, sqlite3.Error) as exc:
+        print(f"[DB] Error fetching reset token: {exc}")
+        return None
+
+def mark_password_reset_used(app: Flask, token: str) -> None:
+    backend = app.config.get("DB_BACKEND", "mysql")
+    used_at_str = datetime.now(timezone.utc)
+    if backend == "sqlite":
+        with get_db_connection(app) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE password_resets SET used_at = ? WHERE token = ?",
+                (used_at_str.isoformat(), token),
+            )
+            conn.commit()
+        return
+    with get_db_connection(app) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE password_resets SET used_at = %s WHERE token = %s",
+                (used_at_str.strftime("%Y-%m-%d %H:%M:%S"), token),
+            )
+
+def _parse_sqlite_timestamp(value: str) -> datetime:
+    try:
+        # isoformat stored
+        return datetime.fromisoformat(value).astimezone(timezone.utc)
+    except Exception:
+        # fallback common sqlite formats
+        try:
+            return datetime.strptime(value, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        except Exception:
+            return datetime.now(timezone.utc)
+
+if __name__ == "__main__":
+    app = create_app()
+    app.run(host=os.getenv("HOST", "127.0.0.1"), port=int(os.getenv("PORT", "5000")), debug=True)
