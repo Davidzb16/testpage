@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block page %}
+  <h1>Deliveries</h1>
+
+  <form method="post" action="{{ url_for('deliveries_add') }}" class="form" style="margin-bottom:12px;">
+    <label>Tracking Number
+      <input type="text" name="tracking_number" placeholder="e.g. 1Z9999999999999999" required />
+    </label>
+    <label>Amount Due (CRC)
+      <input type="number" min="0" step="1" name="amount_due" placeholder="0" required />
+    </label>
+    <button type="submit">Add Package</button>
+  </form>
+
+  <div class="card">
+    <div class="card-title">Packages Today</div>
+    <div style="overflow-x:auto">
+      <table style="width:100%; border-collapse: collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #1c254e;">Tracking</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #1c254e;">Amount (CRC)</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #1c254e;">Status</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #1c254e;">Address</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #1c254e;">Created</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #1c254e;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for d in deliveries %}
+          <tr>
+            <td style="padding:8px; border-bottom:1px solid #1c254e;">{{ d.tracking_number or '—' }}</td>
+            <td style="padding:8px; border-bottom:1px solid #1c254e;">{{ d.amount_due }}</td>
+            <td style="padding:8px; border-bottom:1px solid #1c254e;">
+              <form method="post" action="{{ url_for('deliveries_status') }}">
+                <input type="hidden" name="delivery_id" value="{{ d.id }}" />
+                <select name="status" onchange="this.form.submit()" style="background:#0d1430;color:#fff;border:1px solid #233064;border-radius:6px;padding:6px">
+                  {% set status_color = {'pending':'#9aa0a6','delivered':'#22c55e','not_located':'#facc15'} %}
+                  {% for s in ['pending','delivered','not_located'] %}
+                    <option value="{{ s }}" {% if d.status==s %}selected{% endif %}>
+                      {{ s.replace('_',' ') }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </form>
+            </td>
+            <td style="padding:8px; border-bottom:1px solid #1c254e;">{{ d.address or '—' }}</td>
+            <td style="padding:8px; border-bottom:1px solid #1c254e;">{{ d.created_at }}</td>
+            <td style="padding:8px; border-bottom:1px solid #1c254e;">
+              <form method="post" action="{{ url_for('deliveries_delete') }}" style="display:inline">
+                <input type="hidden" name="delivery_id" value="{{ d.id }}" />
+                <button title="Delete" style="background:none;border:0;cursor:pointer;color:#f87171">🗑️</button>
+              </form>
+              <form method="post" action="{{ url_for('deliveries_undo_delete') }}" style="display:inline;margin-left:6px">
+                <input type="hidden" name="delivery_id" value="{{ d.id }}" />
+                <button title="Undo" style="background:none;border:0;cursor:pointer;color:#60a5fa">↩️</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" style="padding:8px; color: var(--muted)">No deliveries yet.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}
+
+

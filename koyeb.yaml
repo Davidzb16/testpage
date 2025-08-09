@@ -1,6 +1,6 @@
-name: flask-datta-able-deliveries
+name: flask-login-system
 service:
-  name: flask-datta-able-deliveries
+  name: flask-login-system
   type: web
   env: python
   plan: starter
@@ -17,9 +17,7 @@ service:
       value: production
     - key: SECRET_KEY
       value: your-secret-key-here
-    - key: FLASK_APP
-      value: run.py
   build:
     builder: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:5000 run:app
+    startCommand: gunicorn --bind 0.0.0.0:5000 app:app
