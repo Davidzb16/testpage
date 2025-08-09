@@ -21,8 +21,9 @@
       </div>
     </nav>
 
-    {% if session.get("user_id") %}
-      <div class="layout">
+    {% set show_sidebar = session.get('user_id') %}
+    <div class="layout">
+      {% if show_sidebar %}
         <aside class="sidemenu">
           <nav class="menu">
             <a href="{{ url_for('dashboard') }}" class="menu-item {% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a>
@@ -31,34 +32,21 @@
             <a href="{{ url_for('settings_page') }}" class="menu-item {% if request.endpoint == 'settings_page' %}active{% endif %}">Settings</a>
           </nav>
         </aside>
-        <main class="content">
-          <div class="container">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-              {% if messages %}
-                <ul class="flash-list">
-                  {% for category, message in messages %}
-                    <li class="flash {{ category }}">{{ message }}</li>
-                  {% endfor %}
-                </ul>
-              {% endif %}
-            {% endwith %}
-            {% block content %}{% endblock %}
-          </div>
-        </main>
-      </div>
-    {% else %}
-      <main class="container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <ul class="flash-list">
-              {% for category, message in messages %}
-                <li class="flash {{ category }}">{{ message }}</li>
-              {% endfor %}
-            </ul>
-          {% endif %}
-        {% endwith %}
-        {% block content %}{% endblock %}
+      {% endif %}
+      <main class="content">
+        <div class="container {% if not show_sidebar %}auth-page{% endif %}">
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              <ul class="flash-list">
+                {% for category, message in messages %}
+                  <li class="flash {{ category }}">{{ message }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          {% endwith %}
+          {% block content %}{% endblock %}
+        </div>
       </main>
-    {% endif %}
+    </div>
   </body>
 </html>
