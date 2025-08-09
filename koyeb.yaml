@@ -1,0 +1,23 @@
+name: flask-login-system
+service:
+  name: flask-login-system
+  type: web
+  env: python
+  plan: starter
+  regions:
+    - fra
+  ports:
+    - port: 5000
+      protocol: http
+  routes:
+    - path: /
+      protocol: http
+  envs:
+    - key: FLASK_ENV
+      value: production
+    - key: SECRET_KEY
+      value: your-secret-key-here
+  build:
+    builder: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:5000 app:app

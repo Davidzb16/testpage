@@ -792,3 +792,6 @@ def _parse_sqlite_timestamp(value: str) -> datetime:
 if __name__ == "__main__":
     app = create_app()
     app.run(host=os.getenv("HOST", "127.0.0.1"), port=int(os.getenv("PORT", "5000")), debug=True)
+
+# Create app instance for Koyeb deployment
+app = create_app()
