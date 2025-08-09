@@ -15,7 +15,7 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
     app.config.update(
-        DB_BACKEND=os.getenv("DB_BACKEND", "mysql").lower(),
+        DB_BACKEND=os.getenv("DB_BACKEND", "sqlite").lower(),
         MYSQL_HOST=os.getenv("MYSQL_HOST", "127.0.0.1"),
         MYSQL_PORT=int(os.getenv("MYSQL_PORT", "3306")),
         MYSQL_USER=os.getenv("MYSQL_USER", "root"),
