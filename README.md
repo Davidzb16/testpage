@@ -1,166 +1,82 @@
-# Flask Login System
+# [Flask Datta Able](https://app-generator.dev/product/datta-able/flask/)
 
-A simple and secure Flask-based login system with user authentication, registration, and password reset functionality.
+**Open-source Flask Starter** crafted on top of **[Datta Able](https://app-generator.dev/product/datta-able/)**, an open-source `Bootstrap` UI Kit released by [CodedThemes](https://app-generator.dev/agency/codedthemes/).
+The product is designed to deliver the best possible user experience with highly customizable feature-rich pages. 
+
+- 👉 [Flask Datta Able](https://app-generator.dev/product/datta-able/flask/) - `Product Page`
+- 👉 [Flask Datta Able](https://flask-datta-demo.onrender.com) - `LIVE Demo` 
+- 👉 [Flask Datta Able Documentation](https://app-generator.dev/docs/products/flask/datta-able/index.html) - `Complete Information` and Support Links
+  - [Getting Started with Flask](https://app-generator.dev/docs/technologies/flask/index.html) - a `comprehensive tutorial`
+  - `Configuration`: Install Tailwind/Flowbite, Prepare Environment, Setting up the Database 
+  - `Start with Docker`
+  - `Manual Build`
+  - `Start the project`
+  - `Deploy on Render`
+
+<br />
 
 ## Features
 
-- **User Registration**: New users can create accounts
-- **User Login**: Secure authentication system
-- **Password Reset**: Email-based password reset functionality
-- **Dashboard**: Protected dashboard for authenticated users
-- **Deliveries Management**: Track and manage deliveries
-- **Responsive Design**: Works on desktop and mobile devices
+- Simple, Easy-to-Extend codebase, [Blueprint Pattern](https://app-generator.dev/blog/flask-blueprints-a-developers-guide/)
+- [Datta Able](https://app-generator.dev/product/datta-able/) Design Integration 
+- [Bootstrap](https://app-generator.dev/docs/templates/bootstrap/index.html) 5 Styling
+- Session-based Authentication, GitHub, Google
+- DB Persistence: SQLite (default), can be used with MySql, PgSql
+- [Dynamic DataTables](https://flask-datta-demo.onrender.com/dynamic-dt) - manage data without coding
+- **Charts** by ApexCharts
+- Celery Beat 
+- Docker, CI/CD for Render
+- [Vite](https://app-generator.dev/docs/technologies/vite/index.html) for assets management 
 
-## Installation
+![Flask Datta Able - Open-Source Flask Starter](https://user-images.githubusercontent.com/51070104/176118649-7233ffbc-6118-4f56-8cda-baa81d256877.png)
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd test_login
-   ```
+<br />
 
-2. **Create a virtual environment**
-   ```bash
-   python -m venv .venv
-   ```
+## Deploy LIVE
 
-3. **Activate the virtual environment**
-   - Windows:
-     ```bash
-     .venv\Scripts\activate
-     ```
-   - macOS/Linux:
-     ```bash
-     source .venv/bin/activate
-     ```
+> One-click deploy (requires already having an account).
 
-4. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
-5. **Initialize the database**
-   ```bash
-   flask init-db
-   ```
+<br />
 
-## Usage
+## [Datta Able PRO Version](https://app-generator.dev/product/datta-able-pro/flask/)
 
-### Running the Application
+> The premium version provides more features, priority on support, and is more often updated - [Live Demo](https://flask-datta-pro.onrender.com/).
 
-1. **Start the Flask development server**
-   ```bash
-   flask run
-   ```
+- **Simple, Easy-to-Extend** Codebase
+- **Datta Able PRO** Design - Premium Version 
+- **Extended User Profiles**
+- [Charts](https://flask-datta-pro.onrender.com/charts/) 
+- [DataTables](https://flask-datta-pro.onrender.com/tables): Server-side Pagination, Search, Filters, Export
+- **File Manager**
+- **Celery** (async tasks)
+- **Docker**
+- **Deployment-Ready** for Render 
 
-2. **Access the application**
-   - Open your browser and go to `http://localhost:5000`
-   - The application will be available at the local development server
+![Datta Able PRO - Full-Stack Flask Starter provided by App-Generator.](https://user-images.githubusercontent.com/51070104/170474361-a58da82b-fff9-4a59-81a8-7ab99f478f48.png)
 
-### Available Routes
+<br />
 
-- `/` - Home page with login/register options
-- `/login` - User login page
-- `/register` - User registration page
-- `/dashboard` - Protected dashboard (requires authentication)
-- `/deliveries` - Deliveries management page
-- `/forgot` - Password reset request page
-- `/reset_password/<token>` - Password reset page
+## `Customize` with [Flask Generator](https://app-generator.dev/tools/flask-generator/)
 
-## Project Structure
+- Access the [Flask Generator](https://app-generator.dev/tools/flask-generator/)
+- Select the preferred design
+- (Optional) Design Database: edit models and fields
+- (Optional) Edit the fields for the extended user model
+- (Optional) Enable OAuth for GitHub
+- (Optional) Add Celery (async tasks)
+- (Optional) Enable Dynamic Tables Module
+- Docker Scripts
+- Render CI/Cd Scripts
 
-```
-test_login/
-├── app.py                 # Main Flask application
-├── requirements.txt       # Python dependencies
-├── schema.sql            # Database schema
-├── Procfile              # Heroku deployment configuration
-├── static/               # Static files (CSS, JS, images)
-│   └── styles.css        # Custom styles
-├── templates/            # HTML templates
-│   ├── base.html         # Base template
-│   ├── login.html        # Login page
-│   ├── register.html     # Registration page
-│   ├── dashboard.html    # Dashboard page
-│   ├── deliveries.html   # Deliveries page
-│   ├── forgot.html       # Password reset request
-│   └── reset_password.html # Password reset form
-└── instance/             # Instance-specific files
-    └── app.db           # SQLite database
-```
+**The generated Flask project is available as a ZIP Archive and also uploaded to GitHub.**
 
-## Configuration
+![Flask Generator - Flask App Generator - User Interface for choosing the Design](https://github.com/user-attachments/assets/fbf73fc0-e9a1-4f01-86a8-aa8be55413b5) 
 
-### Environment Variables
+![Flask App Generator - User Interface for Edit the Extended User Model](https://github.com/user-attachments/assets/138b9816-4f2e-454f-84f2-7409969b8548) 
 
-The application uses the following environment variables:
+<br />
 
-- `SECRET_KEY` - Secret key for session management (auto-generated if not set)
-- `MAIL_SERVER` - SMTP server for email functionality
-- `MAIL_PORT` - SMTP port
-- `MAIL_USE_TLS` - Use TLS for email
-- `MAIL_USERNAME` - Email username
-- `MAIL_PASSWORD` - Email password
-
-### Database
-
-The application uses SQLite as the default database. The database file is created automatically in the `instance/` directory.
-
-## Development
-
-### Adding New Features
-
-1. **Create new routes** in `app.py`
-2. **Add templates** in the `templates/` directory
-3. **Update styles** in `static/styles.css`
-4. **Test your changes** by running the application
-
-### Database Changes
-
-If you need to modify the database schema:
-
-1. **Update `schema.sql`** with your changes
-2. **Reinitialize the database**:
-   ```bash
-   flask init-db
-   ```
-
-## Deployment
-
-### Heroku Deployment
-
-The project includes a `Procfile` for easy deployment to Heroku:
-
-1. **Create a Heroku app**
-2. **Set environment variables** in Heroku dashboard
-3. **Deploy using Git**:
-   ```bash
-   git push heroku main
-   ```
-
-### Other Platforms
-
-The application can be deployed to any platform that supports Python/Flask applications.
-
-## Security Features
-
-- **Password Hashing**: Passwords are securely hashed using Werkzeug
-- **Session Management**: Secure session handling
-- **CSRF Protection**: Built-in CSRF protection
-- **Input Validation**: Form validation and sanitization
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## License
-
-This project is open source and available under the [MIT License](LICENSE).
-
-## Support
-
-If you encounter any issues or have questions, please open an issue on the GitHub repository.
+---
+[Flask Datta Able](https://app-generator.dev/product/datta-able/flask/) - Open-Source **Flask** Starter provided by [App Generator](https://app-generator.dev)

@@ -1,0 +1,129 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Delivery Driver Dashboard{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/x-icon" href="https://img.icons8.com/color/48/000000/delivery.png">
+</head>
+<body>
+    <!-- Mobile Toggle Button -->
+    <button class="mobile-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    {% if session.user_id %}
+    <!-- Logged In Layout with Sidebar -->
+    <div class="layout">
+        <nav class="sidemenu" id="sidemenu">
+            <div class="sidenav-header">
+                <div class="sidenav-logo">
+                    <img src="https://img.icons8.com/color/48/000000/delivery.png" alt="Logo">
+                    <span class="sidenav-brand">DELIVERY PRO</span>
+                </div>
+            </div>
+            
+            <div class="menu">
+                <a href="{{ url_for('dashboard') }}" class="menu-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                    <i class="fas fa-tachometer-alt"></i>
+                    Dashboard
+                </a>
+                <a href="{{ url_for('deliveries') }}" class="menu-item {% if request.endpoint == 'deliveries' %}active{% endif %}">
+                    <i class="fas fa-box"></i>
+                    Deliveries
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fas fa-route"></i>
+                    Routes
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fas fa-cog"></i>
+                    Settings
+                </a>
+                
+                <div style="margin-top: 2rem; padding: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <a href="{{ url_for('logout') }}" class="menu-item" style="color: #ff6b6b;">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <main class="content" id="content">
+            <div class="main-content">
+                {% block page %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    {% else %}
+    <!-- Authentication Pages Layout -->
+    <div class="auth-page">
+        <div class="auth-container">
+            {% block page %}{% endblock %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash-message {{ category }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <script>
+        // Sidebar toggle functionality
+        function toggleSidebar() {
+            const sidemenu = document.getElementById('sidemenu');
+            const content = document.getElementById('content');
+            
+            if (sidemenu.classList.contains('open')) {
+                sidemenu.classList.remove('open');
+                content.classList.remove('sidebar-open');
+            } else {
+                sidemenu.classList.add('open');
+                content.classList.add('sidebar-open');
+            }
+        }
+
+        // Auto-hide flash messages
+        document.addEventListener('DOMContentLoaded', function() {
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(function(message) {
+                setTimeout(function() {
+                    message.style.opacity = '0';
+                    setTimeout(function() {
+                        message.remove();
+                    }, 300);
+                }, 5000);
+            });
+        });
+
+        // Responsive sidebar behavior
+        function handleResize() {
+            const sidemenu = document.getElementById('sidemenu');
+            const content = document.getElementById('content');
+            
+            if (window.innerWidth < 1200) {
+                sidemenu.classList.add('mini');
+                content.classList.add('mini');
+            } else {
+                sidemenu.classList.remove('mini');
+                content.classList.remove('mini');
+            }
+        }
+
+        window.addEventListener('resize', handleResize);
+        handleResize(); // Initial call
+    </script>
+</body>
+</html>
