@@ -21,7 +21,7 @@ def create_app() -> Flask:
         MYSQL_USER=os.getenv("MYSQL_USER", "root"),
         MYSQL_PASSWORD=os.getenv("MYSQL_PASSWORD", ""),
         MYSQL_DATABASE=os.getenv("MYSQL_DATABASE", "test_login"),
-    )
+)
     # Ensure instance folder exists for SQLite file storage
     try:
         os.makedirs(app.instance_path, exist_ok=True)
@@ -106,8 +106,9 @@ def create_app() -> Flask:
         if not session.get("user_id"):
             flash("Please log in to continue.", "error")
             return redirect(url_for("login"))
-        flash("Deliveries module coming soon.", "success")
-        return redirect(url_for("dashboard"))
+        user_id = session["user_id"]
+        deliveries = fetch_deliveries_list(app, user_id)
+        return render_template("deliveries.html", deliveries=deliveries)
 
     @app.get("/routes")
     def routes_page():
@@ -124,6 +125,28 @@ def create_app() -> Flask:
             return redirect(url_for("login"))
         flash("Settings module coming soon.", "success")
         return redirect(url_for("dashboard"))
+
+    @app.route("/deliveries/add", methods=["POST"])
+    def deliveries_add():
+        if not session.get("user_id"):
+            flash("Please log in to continue.", "error")
+            return redirect(url_for("login"))
+        user_id = session["user_id"]
+        tracking_number = (request.form.get("tracking_number") or "").strip()
+        amount_str = (request.form.get("amount_due") or "").strip()
+        try:
+            amount_due = int(amount_str)
+        except ValueError:
+            amount_due = -1
+        if not tracking_number or amount_due < 0:
+            flash("Please provide a valid tracking number and amount.", "error")
+            return redirect(url_for("deliveries_page"))
+        ok, msg = add_delivery(app, user_id, tracking_number, amount_due)
+        if not ok:
+            flash(msg or "Could not add delivery.", "error")
+        else:
+            flash("Delivery added.", "success")
+        return redirect(url_for("deliveries_page"))
 
     @app.get("/logout")
     def logout():
@@ -239,12 +262,23 @@ def initialize_database(app: Flask) -> None:
                       latitude REAL NULL,
                       longitude REAL NULL,
                       status TEXT NOT NULL CHECK (status IN ('pending','delivered')),
+                       tracking_number TEXT NULL,
+                       amount_due INT NOT NULL DEFAULT 0,
                       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                       delivered_at TIMESTAMP NULL,
                       FOREIGN KEY(user_id) REFERENCES users(id)
                     )
                     """
                 )
+                # SQLite simple migrations to add columns if missing
+                try:
+                    cur.execute("ALTER TABLE deliveries ADD COLUMN tracking_number TEXT")
+                except sqlite3.Error:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE deliveries ADD COLUMN amount_due INT NOT NULL DEFAULT 0")
+                except sqlite3.Error:
+                    pass
                 cur.execute(
                     """
                     CREATE TABLE IF NOT EXISTS password_resets (
@@ -295,13 +329,24 @@ def initialize_database(app: Flask) -> None:
                       address VARCHAR(512) NULL,
                       latitude DOUBLE NULL,
                       longitude DOUBLE NULL,
-                      status ENUM('pending','delivered') NOT NULL,
+                       status ENUM('pending','delivered') NOT NULL,
+                       tracking_number VARCHAR(64) NULL,
+                       amount_due INT NOT NULL DEFAULT 0,
                       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                       delivered_at TIMESTAMP NULL,
                       CONSTRAINT fk_deliveries_user FOREIGN KEY (user_id) REFERENCES users(id)
                     )
                     """
                 )
+                # MySQL migrations to add columns if missing
+                try:
+                    cur.execute("ALTER TABLE deliveries ADD COLUMN tracking_number VARCHAR(64) NULL")
+                except MySQLError:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE deliveries ADD COLUMN amount_due INT NOT NULL DEFAULT 0")
+                except MySQLError:
+                    pass
                 cur.execute(
                     """
                     CREATE TABLE IF NOT EXISTS password_resets (
@@ -458,6 +503,61 @@ def ensure_demo_deliveries_for_user(app: Flask, user_id: int) -> None:
                 )
     except (MySQLError, sqlite3.Error) as exc:
         print(f"[DB] Error seeding demo deliveries: {exc}")
+
+def fetch_deliveries_list(app: Flask, user_id: int) -> list[dict]:
+    backend = app.config.get("DB_BACKEND", "mysql")
+    try:
+        if backend == "sqlite":
+            with get_db_connection(app) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT id, tracking_number, amount_due, status, address, created_at FROM deliveries WHERE user_id = ? ORDER BY created_at DESC",
+                    (user_id,),
+                )
+                rows = cur.fetchall()
+                return [
+                    {
+                        "id": r[0],
+                        "tracking_number": r[1],
+                        "amount_due": r[2],
+                        "status": r[3],
+                        "address": r[4],
+                        "created_at": r[5],
+                    }
+                    for r in rows
+                ]
+        with get_db_connection(app) as conn:
+            with conn.cursor(dictionary=True) as cur:
+                cur.execute(
+                    "SELECT id, tracking_number, amount_due, status, address, created_at FROM deliveries WHERE user_id = %s ORDER BY created_at DESC",
+                    (user_id,),
+                )
+                return cur.fetchall()
+    except (MySQLError, sqlite3.Error) as exc:
+        print(f"[DB] Error fetching deliveries list: {exc}")
+        return []
+
+def add_delivery(app: Flask, user_id: int, tracking_number: str, amount_due: int) -> tuple[bool, str | None]:
+    backend = app.config.get("DB_BACKEND", "mysql")
+    try:
+        if backend == "sqlite":
+            with get_db_connection(app) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "INSERT INTO deliveries (user_id, tracking_number, amount_due, status) VALUES (?, ?, ?, 'pending')",
+                    (user_id, tracking_number, amount_due),
+                )
+                conn.commit()
+            return True, None
+        with get_db_connection(app) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO deliveries (user_id, tracking_number, amount_due, status) VALUES (%s, %s, %s, 'pending')",
+                    (user_id, tracking_number, amount_due),
+                )
+        return True, None
+    except (MySQLError, sqlite3.Error) as exc:
+        return False, str(exc)
 
 def update_user_password(app: Flask, user_id: int, new_password: str) -> Tuple[bool, Optional[str]]:
     backend = app.config.get("DB_BACKEND", "mysql")

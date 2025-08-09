@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block page %}
+  <h1>Deliveries</h1>
+
+  <form method="post" action="{{ url_for('deliveries_add') }}" class="form" style="margin-bottom:12px;">
+    <label>Tracking Number
+      <input type="text" name="tracking_number" placeholder="e.g. 1Z9999999999999999" required />
+    </label>
+    <label>Amount Due (CRC)
+      <input type="number" min="0" step="1" name="amount_due" placeholder="0" required />
+    </label>
+    <button type="submit">Add Package</button>
+  </form>
+
+  <div class="card">
+    <div class="card-title">Packages Today</div>
+    <div style="overflow-x:auto">
+      <table style="width:100%; border-collapse: collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #1c254e;">Tracking</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #1c254e;">Amount (CRC)</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #1c254e;">Status</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #1c254e;">Address</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #1c254e;">Created</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for d in deliveries %}
+          <tr>
+            <td style="padding:8px; border-bottom:1px solid #1c254e;">{{ d.tracking_number or '—' }}</td>
+            <td style="padding:8px; border-bottom:1px solid #1c254e;">{{ d.amount_due }}</td>
+            <td style="padding:8px; border-bottom:1px solid #1c254e;">{{ d.status }}</td>
+            <td style="padding:8px; border-bottom:1px solid #1c254e;">{{ d.address or '—' }}</td>
+            <td style="padding:8px; border-bottom:1px solid #1c254e;">{{ d.created_at }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" style="padding:8px; color: var(--muted)">No deliveries yet.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}
+
+
