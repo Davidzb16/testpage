@@ -104,6 +104,30 @@ def create_app() -> Flask:
             maps_api_key=maps_api_key,
         )
 
+    @app.get("/deliveries")
+    def deliveries_page():
+        if not session.get("user_id"):
+            flash("Please log in to continue.", "error")
+            return redirect(url_for("login"))
+        flash("Deliveries module coming soon.", "success")
+        return redirect(url_for("dashboard"))
+
+    @app.get("/routes")
+    def routes_page():
+        if not session.get("user_id"):
+            flash("Please log in to continue.", "error")
+            return redirect(url_for("login"))
+        flash("Routes module coming soon.", "success")
+        return redirect(url_for("dashboard"))
+
+    @app.get("/settings")
+    def settings_page():
+        if not session.get("user_id"):
+            flash("Please log in to continue.", "error")
+            return redirect(url_for("login"))
+        flash("Settings module coming soon.", "success")
+        return redirect(url_for("dashboard"))
+
     @app.get("/logout")
     def logout():
         session.clear()
