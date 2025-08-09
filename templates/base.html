@@ -22,8 +22,8 @@
     </nav>
 
     {% set show_sidebar = session.get('user_id') %}
-    <div class="layout">
-      {% if show_sidebar %}
+    {% if show_sidebar %}
+      <div class="layout">
         <aside class="sidemenu">
           <nav class="menu">
             <a href="{{ url_for('dashboard') }}" class="menu-item {% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a>
@@ -32,9 +32,24 @@
             <a href="{{ url_for('settings_page') }}" class="menu-item {% if request.endpoint == 'settings_page' %}active{% endif %}">Settings</a>
           </nav>
         </aside>
-      {% endif %}
-      <main class="content">
-        <div class="container {% if not show_sidebar %}auth-page{% endif %}">
+        <main class="content">
+          <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                <ul class="flash-list">
+                  {% for category, message in messages %}
+                    <li class="flash {{ category }}">{{ message }}</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            {% endwith %}
+            {% block page %}{% endblock %}
+          </div>
+        </main>
+      </div>
+    {% else %}
+      <main>
+        <div class="container auth-page auth-full">
           {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
               <ul class="flash-list">
@@ -47,6 +62,6 @@
           {% block page %}{% endblock %}
         </div>
       </main>
-    </div>
+    {% endif %}
   </body>
 </html>
