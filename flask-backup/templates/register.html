@@ -1,0 +1,22 @@
+﻿{% extends "base.html" %}
+{% block page %}
+  <div class="auth-page">
+  <h1>Create Account</h1>
+  <form method="post" class="form">
+    <label>Name (optional)
+      <input type="text" name="full_name" value="{{ (full_name or "") if full_name is defined }}" placeholder="Your name" />
+    </label>
+    <label>Email
+      <input type="email" name="email" value="{{ (email or "") if email is defined }}" placeholder="you@example.com" required />
+    </label>
+    <label>Password
+      <input type="password" name="password" placeholder="At least 8 characters" required />
+    </label>
+    <label>Confirm Password
+      <input type="password" name="confirm_password" placeholder="Re-enter password" required />
+    </label>
+    <button type="submit">Create Account</button>
+  </form>
+  <p>Already have an account? <a href="{{ url_for("login") }}">Log in</a>.</p>
+  </div>
+{% endblock %}
