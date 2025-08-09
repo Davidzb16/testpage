@@ -1,82 +1,278 @@
-# [Flask Datta Able](https://app-generator.dev/product/datta-able/flask/)
+# Flask Datta Able - Login & Deliveries System
 
-**Open-source Flask Starter** crafted on top of **[Datta Able](https://app-generator.dev/product/datta-able/)**, an open-source `Bootstrap` UI Kit released by [CodedThemes](https://app-generator.dev/agency/codedthemes/).
-The product is designed to deliver the best possible user experience with highly customizable feature-rich pages. 
+A modern Flask application built on the **Flask Datta Able** template, featuring a comprehensive login system and deliveries management functionality.
 
-- 👉 [Flask Datta Able](https://app-generator.dev/product/datta-able/flask/) - `Product Page`
-- 👉 [Flask Datta Able](https://flask-datta-demo.onrender.com) - `LIVE Demo` 
-- 👉 [Flask Datta Able Documentation](https://app-generator.dev/docs/products/flask/datta-able/index.html) - `Complete Information` and Support Links
-  - [Getting Started with Flask](https://app-generator.dev/docs/technologies/flask/index.html) - a `comprehensive tutorial`
-  - `Configuration`: Install Tailwind/Flowbite, Prepare Environment, Setting up the Database 
-  - `Start with Docker`
-  - `Manual Build`
-  - `Start the project`
-  - `Deploy on Render`
+## 🚀 Features
 
-<br />
+### Authentication System
+- **User Registration**: Secure account creation with email validation
+- **User Login**: Session-based authentication with remember me functionality
+- **Password Reset**: Email-based password reset with secure tokens
+- **OAuth Integration**: GitHub and Google OAuth support
+- **Profile Management**: User profile editing and management
 
-## Features
+### Deliveries Management System
+- **Delivery Tracking**: Add and manage delivery tracking numbers
+- **Status Management**: Update delivery status (pending, delivered, cancelled)
+- **Amount Tracking**: Track delivery amounts with proper currency handling
+- **Statistics Dashboard**: Real-time statistics for delivery counts
+- **Soft Delete**: Safe deletion with restore functionality
+- **Demo Data**: Quick setup with sample delivery data
 
-- Simple, Easy-to-Extend codebase, [Blueprint Pattern](https://app-generator.dev/blog/flask-blueprints-a-developers-guide/)
-- [Datta Able](https://app-generator.dev/product/datta-able/) Design Integration 
-- [Bootstrap](https://app-generator.dev/docs/templates/bootstrap/index.html) 5 Styling
-- Session-based Authentication, GitHub, Google
-- DB Persistence: SQLite (default), can be used with MySql, PgSql
-- [Dynamic DataTables](https://flask-datta-demo.onrender.com/dynamic-dt) - manage data without coding
-- **Charts** by ApexCharts
-- Celery Beat 
-- Docker, CI/CD for Render
-- [Vite](https://app-generator.dev/docs/technologies/vite/index.html) for assets management 
+### Modern UI/UX
+- **Bootstrap 5**: Responsive design that works on all devices
+- **Datta Able Design**: Professional dashboard interface
+- **Interactive Charts**: Visual data representation
+- **Dynamic Tables**: Advanced data table functionality
+- **Real-time Updates**: AJAX-powered interactions
 
-![Flask Datta Able - Open-Source Flask Starter](https://user-images.githubusercontent.com/51070104/176118649-7233ffbc-6118-4f56-8cda-baa81d256877.png)
+## 🛠️ Technology Stack
 
-<br />
+- **Backend**: Flask 3.1.0
+- **Database**: SQLAlchemy with SQLite (production-ready for PostgreSQL/MySQL)
+- **Authentication**: Flask-Login with OAuth support
+- **Frontend**: Bootstrap 5, Feather Icons, ApexCharts
+- **Build Tools**: Vite for asset management
+- **Deployment**: Docker, Gunicorn, Render-ready
 
-## Deploy LIVE
+## 📦 Installation
 
-> One-click deploy (requires already having an account).
+### Prerequisites
+- Python 3.11+
+- Node.js 16+ (for asset compilation)
+- Git
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+### Quick Start
 
-<br />
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Davidzb16/testpage.git
+   cd testpage
+   ```
 
-## [Datta Able PRO Version](https://app-generator.dev/product/datta-able-pro/flask/)
+2. **Create virtual environment**
+   ```bash
+   python -m venv .venv
+   ```
 
-> The premium version provides more features, priority on support, and is more often updated - [Live Demo](https://flask-datta-pro.onrender.com/).
+3. **Activate virtual environment**
+   - Windows:
+     ```bash
+     .venv\Scripts\activate
+     ```
+   - macOS/Linux:
+     ```bash
+     source .venv/bin/activate
+     ```
 
-- **Simple, Easy-to-Extend** Codebase
-- **Datta Able PRO** Design - Premium Version 
-- **Extended User Profiles**
-- [Charts](https://flask-datta-pro.onrender.com/charts/) 
-- [DataTables](https://flask-datta-pro.onrender.com/tables): Server-side Pagination, Search, Filters, Export
-- **File Manager**
-- **Celery** (async tasks)
-- **Docker**
-- **Deployment-Ready** for Render 
+4. **Install Python dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-![Datta Able PRO - Full-Stack Flask Starter provided by App-Generator.](https://user-images.githubusercontent.com/51070104/170474361-a58da82b-fff9-4a59-81a8-7ab99f478f48.png)
+5. **Install Node.js dependencies**
+   ```bash
+   npm install
+   ```
 
-<br />
+6. **Set up environment variables**
+   ```bash
+   cp env.sample .env
+   # Edit .env with your configuration
+   ```
 
-## `Customize` with [Flask Generator](https://app-generator.dev/tools/flask-generator/)
+7. **Initialize database**
+   ```bash
+   flask db init
+   flask db migrate
+   flask db upgrade
+   ```
 
-- Access the [Flask Generator](https://app-generator.dev/tools/flask-generator/)
-- Select the preferred design
-- (Optional) Design Database: edit models and fields
-- (Optional) Edit the fields for the extended user model
-- (Optional) Enable OAuth for GitHub
-- (Optional) Add Celery (async tasks)
-- (Optional) Enable Dynamic Tables Module
-- Docker Scripts
-- Render CI/Cd Scripts
+8. **Run the application**
+   ```bash
+   python run.py
+   ```
 
-**The generated Flask project is available as a ZIP Archive and also uploaded to GitHub.**
+The application will be available at `http://localhost:5000`
 
-![Flask Generator - Flask App Generator - User Interface for choosing the Design](https://github.com/user-attachments/assets/fbf73fc0-e9a1-4f01-86a8-aa8be55413b5) 
+## 🗄️ Database Schema
 
-![Flask App Generator - User Interface for Edit the Extended User Model](https://github.com/user-attachments/assets/138b9816-4f2e-454f-84f2-7409969b8548) 
+### Users Table
+- `id`: Primary key
+- `username`: Unique username
+- `email`: Unique email address
+- `password`: Hashed password
+- `bio`: User biography (optional)
+- `oauth_github`: GitHub OAuth ID
+- `oauth_google`: Google OAuth ID
 
-<br />
+### Deliveries Table
+- `id`: Primary key
+- `user_id`: Foreign key to users table
+- `tracking_number`: Unique tracking number
+- `amount_due`: Amount in cents (integer)
+- `status`: Delivery status (pending/delivered/cancelled)
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+- `deleted_at`: Soft delete timestamp
+
+### Password Resets Table
+- `id`: Primary key
+- `user_id`: Foreign key to users table
+- `token`: Secure reset token
+- `expires_at`: Token expiration time
+- `used_at`: Token usage timestamp
+- `created_at`: Creation timestamp
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Create a `.env` file with the following variables:
+
+```env
+# Flask Configuration
+FLASK_APP=run.py
+FLASK_ENV=development
+SECRET_KEY=your-secret-key-here
+
+# Database Configuration
+DATABASE_URL=sqlite:///apps/db.sqlite3
+
+# OAuth Configuration (Optional)
+GITHUB_OAUTH_CLIENT_ID=your-github-client-id
+GITHUB_OAUTH_CLIENT_SECRET=your-github-client-secret
+GOOGLE_OAUTH_CLIENT_ID=your-google-client-id
+GOOGLE_OAUTH_CLIENT_SECRET=your-google-client-secret
+
+# Email Configuration (Optional)
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=true
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+```
+
+### Generate Secret Key
+
+```python
+import secrets
+print(secrets.token_hex(32))
+```
+
+## 🚀 Deployment
+
+### Render Deployment
+
+1. **Connect your GitHub repository to Render**
+2. **Create a new Web Service**
+3. **Configure the service**:
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `gunicorn --bind 0.0.0.0:$PORT run:app`
+   - **Environment Variables**: Add all required environment variables
+
+### Docker Deployment
+
+```bash
+# Build the image
+docker build -t flask-datta-able .
+
+# Run the container
+docker run -p 5000:5000 flask-datta-able
+```
+
+### Local Production
+
+```bash
+# Install gunicorn
+pip install gunicorn
+
+# Run with gunicorn
+gunicorn --bind 0.0.0.0:5000 run:app
+```
+
+## 📁 Project Structure
+
+```
+├── apps/                          # Application modules
+│   ├── authentication/            # User authentication
+│   ├── deliveries/                # Deliveries management
+│   ├── home/                      # Main dashboard
+│   ├── charts/                    # Chart components
+│   ├── dyn_dt/                    # Dynamic tables
+│   └── config.py                  # Configuration
+├── templates/                     # Jinja2 templates
+│   ├── layouts/                   # Base layouts
+│   ├── includes/                  # Reusable components
+│   ├── pages/                     # Page templates
+│   ├── authentication/            # Auth templates
+│   └── deliveries/                # Delivery templates
+├── static/                        # Static assets
+│   ├── assets/                    # CSS, JS, images
+│   └── scss/                      # SCSS source files
+├── migrations/                    # Database migrations
+├── media/                         # User uploaded files
+├── run.py                         # Application entry point
+├── requirements.txt               # Python dependencies
+└── package.json                   # Node.js dependencies
+```
+
+## 🔐 Security Features
+
+- **Password Hashing**: Secure password storage with bcrypt
+- **CSRF Protection**: Built-in CSRF token protection
+- **Session Management**: Secure session handling
+- **Input Validation**: Comprehensive form validation
+- **SQL Injection Protection**: SQLAlchemy ORM protection
+- **XSS Protection**: Template auto-escaping
+
+## 🎨 Customization
+
+### Adding New Modules
+
+1. **Create a new blueprint**:
+   ```bash
+   mkdir apps/your_module
+   touch apps/your_module/__init__.py
+   touch apps/your_module/routes.py
+   touch apps/your_module/models.py
+   ```
+
+2. **Register the blueprint** in `apps/__init__.py`
+
+3. **Create templates** in `templates/your_module/`
+
+### Styling
+
+- **SCSS**: Edit `static/assets/scss/custom.scss`
+- **CSS**: Edit `static/assets/css/custom.css`
+- **Build**: Run `npm run build` to compile assets
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+
+## 🙏 Acknowledgments
+
+- **AppSeed**: Flask Datta Able template
+- **CodedThemes**: Datta Able UI Kit
+- **Bootstrap**: Frontend framework
+- **Flask**: Web framework
+
+## 📞 Support
+
+- **Documentation**: [Flask Datta Able Docs](https://app-generator.dev/docs/products/flask/datta-able/index.html)
+- **Issues**: [GitHub Issues](https://github.com/Davidzb16/testpage/issues)
+- **Live Demo**: [Flask Datta Able Demo](https://flask-datta-demo.onrender.com)
 
 ---
-[Flask Datta Able](https://app-generator.dev/product/datta-able/flask/) - Open-Source **Flask** Starter provided by [App Generator](https://app-generator.dev)
+
+**Built with ❤️ using Flask Datta Able**
