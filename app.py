@@ -148,6 +148,44 @@ def create_app() -> Flask:
             flash("Delivery added.", "success")
         return redirect(url_for("deliveries_page"))
 
+    @app.post("/deliveries/status")
+    def deliveries_status():
+        if not session.get("user_id"):
+            return redirect(url_for("login"))
+        user_id = session["user_id"]
+        delivery_id = int(request.form.get("delivery_id") or 0)
+        status = (request.form.get("status") or "").strip()
+        ok, msg = update_delivery_status(app, user_id, delivery_id, status)
+        if not ok:
+            flash(msg or "Could not update status.", "error")
+        return redirect(url_for("deliveries_page"))
+
+    @app.post("/deliveries/delete")
+    def deliveries_delete():
+        if not session.get("user_id"):
+            return redirect(url_for("login"))
+        user_id = session["user_id"]
+        delivery_id = int(request.form.get("delivery_id") or 0)
+        ok, msg = soft_delete_delivery(app, user_id, delivery_id)
+        if not ok:
+            flash(msg or "Could not delete delivery.", "error")
+        else:
+            flash("Delivery deleted. You can undo it.", "success")
+        return redirect(url_for("deliveries_page"))
+
+    @app.post("/deliveries/undo-delete")
+    def deliveries_undo_delete():
+        if not session.get("user_id"):
+            return redirect(url_for("login"))
+        user_id = session["user_id"]
+        delivery_id = int(request.form.get("delivery_id") or 0)
+        ok, msg = undo_delete_delivery(app, user_id, delivery_id)
+        if not ok:
+            flash(msg or "Could not undo delete.", "error")
+        else:
+            flash("Deletion reverted.", "success")
+        return redirect(url_for("deliveries_page"))
+
     @app.get("/logout")
     def logout():
         session.clear()
@@ -261,11 +299,12 @@ def initialize_database(app: Flask) -> None:
                       address TEXT NULL,
                       latitude REAL NULL,
                       longitude REAL NULL,
-                      status TEXT NOT NULL CHECK (status IN ('pending','delivered')),
-                       tracking_number TEXT NULL,
-                       amount_due INT NOT NULL DEFAULT 0,
+                      status TEXT NOT NULL,
+                      tracking_number TEXT NULL,
+                      amount_due INT NOT NULL DEFAULT 0,
                       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                       delivered_at TIMESTAMP NULL,
+                      deleted_at TIMESTAMP NULL,
                       FOREIGN KEY(user_id) REFERENCES users(id)
                     )
                     """
@@ -277,6 +316,10 @@ def initialize_database(app: Flask) -> None:
                     pass
                 try:
                     cur.execute("ALTER TABLE deliveries ADD COLUMN amount_due INT NOT NULL DEFAULT 0")
+                except sqlite3.Error:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE deliveries ADD COLUMN deleted_at TIMESTAMP NULL")
                 except sqlite3.Error:
                     pass
                 cur.execute(
@@ -329,11 +372,12 @@ def initialize_database(app: Flask) -> None:
                       address VARCHAR(512) NULL,
                       latitude DOUBLE NULL,
                       longitude DOUBLE NULL,
-                       status ENUM('pending','delivered') NOT NULL,
-                       tracking_number VARCHAR(64) NULL,
-                       amount_due INT NOT NULL DEFAULT 0,
+                      status VARCHAR(32) NOT NULL,
+                      tracking_number VARCHAR(64) NULL,
+                      amount_due INT NOT NULL DEFAULT 0,
                       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                       delivered_at TIMESTAMP NULL,
+                      deleted_at TIMESTAMP NULL,
                       CONSTRAINT fk_deliveries_user FOREIGN KEY (user_id) REFERENCES users(id)
                     )
                     """
@@ -345,6 +389,14 @@ def initialize_database(app: Flask) -> None:
                     pass
                 try:
                     cur.execute("ALTER TABLE deliveries ADD COLUMN amount_due INT NOT NULL DEFAULT 0")
+                except MySQLError:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE deliveries ADD COLUMN deleted_at TIMESTAMP NULL")
+                except MySQLError:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE deliveries MODIFY COLUMN status VARCHAR(32) NOT NULL")
                 except MySQLError:
                     pass
                 cur.execute(
@@ -511,7 +563,7 @@ def fetch_deliveries_list(app: Flask, user_id: int) -> list[dict]:
             with get_db_connection(app) as conn:
                 cur = conn.cursor()
                 cur.execute(
-                    "SELECT id, tracking_number, amount_due, status, address, created_at FROM deliveries WHERE user_id = ? ORDER BY created_at DESC",
+                    "SELECT id, tracking_number, amount_due, status, address, created_at FROM deliveries WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC",
                     (user_id,),
                 )
                 rows = cur.fetchall()
@@ -529,7 +581,7 @@ def fetch_deliveries_list(app: Flask, user_id: int) -> list[dict]:
         with get_db_connection(app) as conn:
             with conn.cursor(dictionary=True) as cur:
                 cur.execute(
-                    "SELECT id, tracking_number, amount_due, status, address, created_at FROM deliveries WHERE user_id = %s ORDER BY created_at DESC",
+                    "SELECT id, tracking_number, amount_due, status, address, created_at FROM deliveries WHERE user_id = %s AND deleted_at IS NULL ORDER BY created_at DESC",
                     (user_id,),
                 )
                 return cur.fetchall()
@@ -554,6 +606,75 @@ def add_delivery(app: Flask, user_id: int, tracking_number: str, amount_due: int
                 cur.execute(
                     "INSERT INTO deliveries (user_id, tracking_number, amount_due, status) VALUES (%s, %s, %s, 'pending')",
                     (user_id, tracking_number, amount_due),
+                )
+        return True, None
+    except (MySQLError, sqlite3.Error) as exc:
+        return False, str(exc)
+
+def update_delivery_status(app: Flask, user_id: int, delivery_id: int, status: str) -> tuple[bool, str | None]:
+    if status not in ("pending", "delivered", "not_located"):
+        return False, "Invalid status"
+    backend = app.config.get("DB_BACKEND", "mysql")
+    try:
+        if backend == "sqlite":
+            with get_db_connection(app) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "UPDATE deliveries SET status = ? WHERE id = ? AND user_id = ?",
+                    (status, delivery_id, user_id),
+                )
+                conn.commit()
+            return True, None
+        with get_db_connection(app) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE deliveries SET status = %s WHERE id = %s AND user_id = %s",
+                    (status, delivery_id, user_id),
+                )
+        return True, None
+    except (MySQLError, sqlite3.Error) as exc:
+        return False, str(exc)
+
+def soft_delete_delivery(app: Flask, user_id: int, delivery_id: int) -> tuple[bool, str | None]:
+    backend = app.config.get("DB_BACKEND", "mysql")
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        if backend == "sqlite":
+            with get_db_connection(app) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "UPDATE deliveries SET deleted_at = ? WHERE id = ? AND user_id = ?",
+                    (now, delivery_id, user_id),
+                )
+                conn.commit()
+            return True, None
+        with get_db_connection(app) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE deliveries SET deleted_at = %s WHERE id = %s AND user_id = %s",
+                    (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), delivery_id, user_id),
+                )
+        return True, None
+    except (MySQLError, sqlite3.Error) as exc:
+        return False, str(exc)
+
+def undo_delete_delivery(app: Flask, user_id: int, delivery_id: int) -> tuple[bool, str | None]:
+    backend = app.config.get("DB_BACKEND", "mysql")
+    try:
+        if backend == "sqlite":
+            with get_db_connection(app) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "UPDATE deliveries SET deleted_at = NULL WHERE id = ? AND user_id = ?",
+                    (delivery_id, user_id),
+                )
+                conn.commit()
+            return True, None
+        with get_db_connection(app) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE deliveries SET deleted_at = NULL WHERE id = %s AND user_id = %s",
+                    (delivery_id, user_id),
                 )
         return True, None
     except (MySQLError, sqlite3.Error) as exc:

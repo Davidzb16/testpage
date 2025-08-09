@@ -44,3 +44,9 @@ button { padding: 10px 14px; border-radius: 8px; border: 0; background: var(--pr
 .card { background: var(--panel); border: 1px solid #1c254e; border-radius: 12px; padding: 14px; }
 .card-title { color: var(--muted); font-size: 13px; }
 .card-value { font-size: 28px; font-weight: 700; }
+
+/* Simple status color dots if needed */
+.status-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+.status-pending { background:#9aa0a6; }
+.status-delivered { background:#22c55e; }
+.status-not_located { background:#facc15; }
